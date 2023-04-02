@@ -27,6 +27,12 @@ Eigen::Matrix4f get_model_matrix(float rotation_angle)
     // Create the model matrix for rotating the triangle around the Z axis.
     // Then return it.
 
+    float angle = rotation_angle * (MY_PI / 180);
+    model << cos(angle), -sin(angle), 0, 0,
+        sin(angle), cos(angle), 0, 0,
+        0, 0, 1, 0,
+        0, 0, 0, 1;
+
     return model;
 }
 
@@ -41,19 +47,56 @@ Eigen::Matrix4f get_projection_matrix(float eye_fov, float aspect_ratio,
     // Create the projection matrix for the given parameters.
     // Then return it.
 
+    Eigen::Matrix4f persp_otrho, ortho;
+    persp_otrho << zNear, 0, 0, 0,
+        0, zNear, 0, 0,
+        0, 0, zNear + zFar, -zNear * zFar,
+        0, 0, 1, 0;
+    float fov = eye_fov * (MY_PI / 180);
+    float top = tan(fov / 2) * (-zNear), bottom = -top;
+    float right = top * aspect_ratio, left = -right;
+    ortho << 2 / (right - left), 0, 0, -(right + left) / 2,
+        0, 2 / (top - bottom), 0, -(top + bottom) / 2,
+        0, 0, 2 / (zNear - zFar), -(zNear + zFar) / 2,
+        0, 0, 0, 1;
+    projection = ortho * persp_otrho;
+
     return projection;
 }
 
-int main(int argc, const char** argv)
+Eigen::Matrix4f get_rotation(Vector3f axis, float angle)
+{
+    float a = angle * (MY_PI / 180);
+    Eigen::Matrix4f I, N, rotation;
+    Eigen::Vector4f n;
+    Eigen::RowVector4f nt;
+
+    n << axis.x(), axis.y(), axis.z(), 0;
+    nt << axis.x(), axis.y(), axis.z(), 0;
+
+    I = Eigen::Matrix4f::Identity();
+    N << 0, -n.z(), n.y(), 0,
+        n.z(), 0, -n.x(), 0,
+        -n.y(), n.x(), 0, 0,
+        0, 0, 0, 1;
+
+    rotation = cos(a) * I + (1 - cos(a)) * n * nt + sin(a) * N;
+    rotation(3, 3) = 1;
+    return rotation;
+}
+
+int main(int argc, const char **argv)
 {
     float angle = 0;
     bool command_line = false;
     std::string filename = "output.png";
 
-    if (argc >= 3) {
+    if (argc >= 3)
+    {
         command_line = true;
         angle = std::stof(argv[2]); // -r by default
-        if (argc == 4) {
+        if (argc == 4)
+        {
             filename = std::string(argv[3]);
         }
         else
@@ -74,7 +117,8 @@ int main(int argc, const char** argv)
     int key = 0;
     int frame_count = 0;
 
-    if (command_line) {
+    if (command_line)
+    {
         r.clear(rst::Buffers::Color | rst::Buffers::Depth);
 
         r.set_model(get_model_matrix(angle));
@@ -90,10 +134,15 @@ int main(int argc, const char** argv)
         return 0;
     }
 
-    while (key != 27) {
+    Eigen::Vector3f axis;
+    std::cin >> axis.x() >> axis.y() >> axis.z();
+
+    while (key != 27)
+    {
         r.clear(rst::Buffers::Color | rst::Buffers::Depth);
 
-        r.set_model(get_model_matrix(angle));
+        r.set_model(get_rotation(axis, angle));
+        // r.set_model(get_model_matrix(angle));
         r.set_view(get_view_matrix(eye_pos));
         r.set_projection(get_projection_matrix(45, 1, 0.1, 50));
 
@@ -106,10 +155,12 @@ int main(int argc, const char** argv)
 
         std::cout << "frame count: " << frame_count++ << '\n';
 
-        if (key == 'a') {
+        if (key == 'a')
+        {
             angle += 10;
         }
-        else if (key == 'd') {
+        else if (key == 'd')
+        {
             angle -= 10;
         }
     }
