@@ -99,5 +99,8 @@ namespace rst
 
         int next_id = 0;
         int get_next_id() { return next_id++; }
+
+        std::vector<Eigen::Vector3f> frame_sample;
+        std::vector<float> depth_sample;
     };
 }
